@@ -1,62 +1,66 @@
 //initially, pull from archive.org's main page, eval result. use that to pull down the track, and play it
 var http = require('http'),
-    archive = require('./archive-lib'),
-    async = require('async'),
+    fs = require('fs'),
+    scion = require('scion'),
+    xmldom = require('xmldom'),
     urlModule = require('url');
-http.createServer(function (req, res) {
 
-    function handleError(err){
-        res.writeHead(500, {'Content-Type': 'text/plain'});
-        res.end(err.message);
-    }
+var sessions = {};
 
-    archive.getPicksOfTheDay(function(err,picks){
-        if(err) return handleError(err);
+//hook up custom action
+scion.ext.actionCodeGenerator.codeGenerators.Response = function(action){
+    var s = "_event.data.response.writeHead(200, {'Content-Type': 'application/xml'});\n" + 
+        "_event.data.response.end(" + JSON.stringify((new xmldom.XMLSerializer()).serializeToString(action)) + ");";
+    //console.log("generated Response",s);
+    return s;
+}; 
 
-        archive.getDetail(picks.etree.identifier,function(err,detail){
-            if(err) return handleError(err);
+scion.pathToModel('./archive.xml',function(err,model){
+    if(err) throw err;
 
-            var urls = archive.getUrlsFromDetail(detail).
-                            filter(function(url){return url.match(/.mp3$/);}).
-                            filter(function(url){return !url.match(/_vbr.mp3$/);});  //filter out vbr-encoded mp3s
+    http.createServer(function (req, res) {
 
-            //get the urls to make sure they actually work
-            async.filter(urls,function(url,cb){
-                var oUrl = urlModule.parse(url); 
+        //do everything as GET
+        var url = urlModule.parse(req.url,true);
+        var sid = url.query.CallSid;
 
-                var opt = {
-                    host : oUrl.host,
-                    path : oUrl.path,
-                    port : 80,
-                    protocol : oUrl.protocol,
-                    method : 'HEAD'
-                };
-                
-                console.log("requesting ",url,opt);
-                var req = http.request(opt,function(res){
-                    console.log("received response to url",url,res.statusCode);
-                    cb(res.statusCode === 200);
-                });
-                req.on("error",function(e){
-                    console.log("Received http error when requesting url.",e);
-                    cb(false);
-                });
-                req.end();
-            },function(goodUrls){
-                if(err) return handleError(err);
+        //pull out the session or create if not created
+        var session = sessions[sid];
+        if(!session){
+            console.log("creating new SCXML session");
+            session = sessions[sid] = new scion.SCXML(model);
+            session.start();
+            session.gen("init",{
+                archive:require('./archive-lib'),
+                async:require('async')
+            });
+        }else{
+            console.log("using existing session");
+        }
 
-                res.writeHead(200, {'Content-Type': 'application/xml'});
-                res.end(
-                    '<Response>' +
-                        '<Say>Playing the archive dot org Live music picks</Say>' +
-                        '<Say>' +  picks.etree.title + '</Say>' +
-                        '<Say>Please wait while the songs are loaded</Say>' +
-                        goodUrls.map(function(url){return "<Play>" + url + "</Play>";}).join("\n") + 
-                    '</Response>');
-                });
+        //do a bit of extra parsing...
+        if(url.query.Digits){
+            url.query.Digits = parseInt(url.query.Digits,10);
+        }
 
-        });
-    }); 
-    
-}).listen(1337);
-console.log('Server running at http://127.0.0.1:1337/');
+
+        //transform this into a statecharts event and pass into the state machine
+        var event = {
+            name : url.pathname,
+            data : {
+                request : req,
+                response : res,
+                params : url.query
+            }
+        };
+
+        console.log("sending event",event);
+
+        var conf = session.gen(event);
+
+        console.log("new conf",conf);
+        
+    }).listen(1337);
+    console.log('Server running at http://127.0.0.1:1337/');
+});
+

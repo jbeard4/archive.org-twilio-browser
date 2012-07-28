@@ -6,11 +6,18 @@
 
     <datamodel>
         <data id="serverUrl" expr="'http://jacobbeard.net:1337'"/>
+        <data id="api"/>
     </datamodel>
 
-    <!-- <script src="playPick.js"/> -->
+    <script src="./playPick.js"/>
 
     <state id="initial_default">
+        <transition event="init" target="waiting_for_initial_request">
+            <assign location="api" expr="_event.data"/>
+        </transition>
+    </state>
+
+    <state id="waiting_for_initial_request">
         <transition target="root_menu" event="/"/>
     </state>
 
@@ -32,7 +39,6 @@
 
         <!-- anything else - catchall error condition -->
         <transition target="root_menu" event="*">
-            <log label="taking transition from root_menu to root_menu" expr="_events"/>
             <Response>
                 <Gather numDigits="1" action="number_received" method="GET">
                     <Say>I did not understand your response.</Say>
@@ -46,10 +52,9 @@
         <!-- TODO: move the logic in playPack into SCXML -->
         <onentry>
             <log label="entering playing_pick"/>
-            <Response>
-                <Say>This is where we would play the pick of the day.</Say>
-                <Redirect method="GET">/</Redirect>
-            </Response>
+            <script>
+                playPick(_event.data.response,api);
+            </script>
         </onentry>
 
         <!-- whatever we do, just return -->
