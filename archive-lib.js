@@ -1,4 +1,5 @@
 //this is a small lib for the archive.org API
+var async = require('async');
 
 var ar = "http://archive.org/";
 
@@ -46,8 +47,37 @@ function getUrlsFromDetail(detail,cb){
     return urls;
 }
 
+function filterUrls(urls,cb,api){
+
+    //get the urls to make sure they actually work
+    api.async.filter(urls,function(url,cb){
+        var oUrl = api.url.parse(url); 
+
+        var opt = {
+            host : oUrl.host,
+            path : oUrl.path,
+            port : 80,
+            protocol : oUrl.protocol,
+            method : 'HEAD'
+        };
+        
+        console.log("requesting ",url,opt);
+        var req = http.request(opt,function(res){
+            console.log("received response to url",url,res.statusCode);
+            cb(res.statusCode === 200);
+        });
+        req.on("error",function(e){
+            console.log("Received http error when requesting url.",e);
+            cb(false);
+        });
+        req.end();
+    },cb);
+}
+
+
 module.exports = {
     getPicksOfTheDay : getPicksOfTheDay,
     getDetail  : getDetail,
-    getUrlsFromDetail : getUrlsFromDetail
+    getUrlsFromDetail : getUrlsFromDetail,
+    filterUrls : filterUrls
 };

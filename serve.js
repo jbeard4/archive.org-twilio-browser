@@ -31,18 +31,14 @@ scion.pathToModel('./archive.xml',function(err,model){
             session = sessions[sid] = new scion.SCXML(model);
             session.start();
             session.gen("init",{
+                http:http,
+                url:urlModule,
                 archive:require('./archive-lib'),
                 async:require('async')
             });
         }else{
             console.log("using existing session");
         }
-
-        //do a bit of extra parsing...
-        if(url.query.Digits){
-            url.query.Digits = parseInt(url.query.Digits,10);
-        }
-
 
         //transform this into a statecharts event and pass into the state machine
         var event = {

@@ -19,29 +19,7 @@ function playPick(res,api){
                             filter(function(url){return !url.match(/_vbr.mp3$/);});  //filter out vbr-encoded mp3s
 
             //get the urls to make sure they actually work
-            api.async.filter(urls,function(url,cb){
-                var oUrl = urlModule.parse(url); 
-
-                var opt = {
-                    host : oUrl.host,
-                    path : oUrl.path,
-                    port : 80,
-                    protocol : oUrl.protocol,
-                    method : 'HEAD'
-                };
-                
-                console.log("requesting ",url,opt);
-                var req = http.request(opt,function(res){
-                    console.log("received response to url",url,res.statusCode);
-                    cb(res.statusCode === 200);
-                });
-                req.on("error",function(e){
-                    console.log("Received http error when requesting url.",e);
-                    cb(false);
-                });
-                req.end();
-            },function(goodUrls){
-                if(err) return handleError(err);
+            api.archive.filterUrls(urls,function(goodUrls){
 
                 var result = '<Response>' +
                         '<Say>Playing the archive dot org Live music picks</Say>' +
@@ -56,7 +34,7 @@ function playPick(res,api){
 
                 res.writeHead(200, {'Content-Type': 'application/xml'});
                 res.end(result);
-            });
+            },api);
 
         });
     }); 

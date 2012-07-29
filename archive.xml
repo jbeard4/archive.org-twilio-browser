@@ -10,6 +10,7 @@
     </datamodel>
 
     <script src="./playPick.js"/>
+    <script src="./performSearch.js"/>
 
     <state id="initial_default">
         <transition event="init" target="waiting_for_initial_request">
@@ -34,8 +35,8 @@
             </Response>
         </onentry>
 
-        <transition target="playing_pick" event="/number_received" cond="_event.data.params.Digits === 1"/>
-        <transition target="searching" event="/number_received" cond="_event.data.params.Digits === 2"/>
+        <transition target="playing_pick" event="/number_received" cond="_event.data.params.Digits === '1'"/>
+        <transition target="searching" event="/number_received" cond="_event.data.params.Digits === '2'"/>
 
         <!-- anything else - catchall error condition -->
         <transition target="root_menu" event="*">
@@ -62,16 +63,71 @@
     </state>
 
     <state id="searching">
+        <datamodel>
+            <data id="searchNumber"/>
+            <data id="searchTerm"/>
+        </datamodel>
+
         <onentry>
             <log label="entering searching"/>
             <Response>
-                <Say>This is where we would perform a search.</Say>
+                <Gather numDigits="1" action="number_received" finishOnKey="*"  method="GET">
+                    <Say>Press 1 to search for an artist. Press 2 to search for a title.</Say>
+                </Gather>
                 <Redirect method="GET">/</Redirect>
             </Response>
+
         </onentry>
 
-        <!-- whatever we do, just return -->
-        <transition target="root_menu" event="*"/>
+        <transition target="receiving_search_input" event="/number_received" cond="_event.data.params.Digits === '1' || _event.data.params.Digits === '2'"> 
+            <assign location="searchNumber" expr="_event.data.params.Digits"/>
+        </transition>
+        <transition target="root_menu" event="/"/> 
+        <transition target="bad_search_number" event="*"/> 
+    </state>
+
+    <state id="receiving_search_input">
+        <onentry>
+            <Response>
+                <Gather numDigits="3" action="number_received" method="GET">
+                    <Say>Press the first three digits of the name to search for.</Say>
+                </Gather>
+                <Redirect method="GET">/</Redirect>
+            </Response>
+
+        </onentry>
+
+        <transition target="performing_search" event="/number_received" cond="_event.data.params.Digits"> 
+            <assign location="searchTerm" expr="_event.data.params.Digits"/>
+        </transition>
+        <transition target="bad_search_number" event="/number_received"/> 
+        <transition target="root_menu" event="*"/> 
+        
+    </state>
+
+    <state id="performing_search">
+        <onentry>
+            <script>
+                performSearch(searchNumber,searchTerm,_event.data.response,api);
+            </script>
+        </onentry>
+        
+        <transition target="searching" event="/search-complete" />
+        <transition target="searching" event="/artist-not-found" />
+        <transition target="root_menu" event="*" />
+    </state>
+
+    <state id="bad_search_number">
+        <onentry>
+            <Response>
+                <Say>I didn't understand the number you entered.</Say>
+                <Redirect method="GET">/</Redirect>
+            </Response>
+
+        </onentry>
+
+        <transition target="searching" event="/"/> 
+    
     </state>
 
 </scxml>
