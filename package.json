@@ -32,7 +32,8 @@
         "xmldom" : "git://github.com/jbeard4/xmldom.git",
         "scion" : "*",
         "socket.io" : "*",
-        "node-static" : "*"
+        "node-static" : "*",
+        "async" : "*"
     },
     "engines" : { "node" : ">=0.8.1" }
 }

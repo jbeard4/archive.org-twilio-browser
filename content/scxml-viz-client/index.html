@@ -8,7 +8,7 @@
         <script>
 
             //TODO: find a way to inform websocket server about session that we're interested in
-            var socket = io.connect('http://localhost');
+            var socket = io.connect('/');
 
             //first parse query parameter
             var sidMatches = window.location.search.slice(1).match(/^sid=(.*)$/);
