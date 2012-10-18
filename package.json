@@ -1,0 +1,38 @@
+{
+    "name": "archive.org-twilio-browser",
+    "version": "0.0.1",
+    "description": "A voice menu interface for the archive.org live music archive, designed to work with the Twilio API.",
+    "keywords": [
+        "twilio",
+        "voice",
+        "archive.org",
+        "music"
+    ],
+    "maintainers": [{
+        "name": "Jacob Beard",
+        "email": "jbeard4@cs.mcgill.ca",
+        "url": "http://echo-flow.com"
+    }],
+    "bugs": {
+        "email": "jbeard4@cs.mcgill.ca",
+        "url": "https://github.com/jbeard4/archive.org-twilio-browser"
+    },
+    "licenses": [
+        {
+            "type": "Apache-2.0"
+        }
+    ],
+    "repositories": [
+        {
+            "type": "git",
+            "url": "git://github.com/jbeard4/archive.org-twilio-browser.git"
+        }
+    ],
+    "dependencies" : {
+        "xmldom" : "git://github.com/jbeard4/xmldom.git",
+        "scion" : "*",
+        "socket.io" : "*",
+        "node-static" : "*"
+    },
+    "engines" : { "node" : ">=0.8.1" }
+}

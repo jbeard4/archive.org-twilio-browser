@@ -3,9 +3,14 @@ var http = require('http'),
     fs = require('fs'),
     scion = require('scion'),
     xmldom = require('xmldom'),
-    urlModule = require('url');
+    urlModule = require('url'),
+    io = require('socket.io'),
+    sttic = require('node-static'),
+    fs = require('fs'),
+    path = require('path');
 
 var sessions = {};
+var sockets = [];
 
 //hook up custom action
 scion.ext.actionCodeGeneratorModule.gen.actionTags[""].Response = function(action){
@@ -20,47 +25,73 @@ function dumpSessionsHTML(res){
     res.end(
         '<html><head></head><body><ul><h1>Active Sessions:</h1>' + 
             Object.keys(sessions).map(function(sid){
-                return '<li><a href="/sessions/' + sid + '">/sessions/' + sid + '</a></li>';
+                return '<li><a href="/scxml-viz-client/index.html?sid=' + sid + '">' + sid + '</a></li>';
             }).join('\n') + 
         '</ul></body></html>');
 }
 
-function dumpSessionHTML(res,session){
-    //pull it out
-}
 
-scion.pathToModel('./archive.xml',function(err,model){
+
+var file = new sttic.Server(path.join(__dirname,'content'));
+
+
+scion.pathToModel('./content/archive.xml',function(err,model){
     if(err) throw err;
 
-    http.createServer(function (req, res) {
+    var server = http.createServer(function (req, res) {
+
+        console.log('received request',req);
 
         //do everything as GET
         var url = urlModule.parse(req.url,true);
 
-        var m;
+        var m, sid, session;
 
         if(url.pathname === "/sessions" && req.method === "GET"){
             dumpSessionsHTML(res);
-        }else if(m = url.pathname.match(/^\/sessions\/(.*)$/)){
-            dumpSessionHTML(res,m[1]);
+        }else if(url.pathname === '/configuration' && req.method === "GET"){
+            sid = url.query.sid;
+            session = sessions[sid];
+            if(!sid){
+                res.writeHead(400,{'Content-Type' : 'text/plain'});
+                res.end('Session id not specificed.');
+            }else if(!session){
+                res.writeHead(404,{'Content-Type' : 'text/plain'});
+                res.end('Session not found for session id ' + sid);
+            }else{
+                res.writeHead(200,{'Content-Type' : 'application/json'});
+                res.end(JSON.stringify(session.getFullConfiguration()));
+            }
         }else if(url.query.CallSid){
 
-            var sid = url.query.CallSid;
+            sid = url.query.CallSid;
 
             if(url.query.CallStatus === 'completed'){
                 delete sessions[sid];   //TODO: send this into the state maichne as an event as well, such that it transitions to final state and cleans itself up.
             }else{
 
                 //pull out the session or create if not created
-                var session = sessions[sid];
+                session = sessions[sid];
                 if(!session){
                     console.log("creating new SCXML session");
                     session = sessions[sid] = new scion.SCXML(model);
+
+                    //TODO: find a way to filter sockets to interested clients
+                    session.registerListener({
+                        onEntry : function(stateId){
+                            sockets.forEach(function(socket){socket.emit('onEntry', {stateId:stateId,sessionId:sid});});
+                        },
+                        onExit : function(stateId){
+                            sockets.forEach(function(socket){socket.emit('onExit', {stateId:stateId,sessionId:sid});});
+                        }
+                    }); 
+
                     session.start();
+                    //FIXME: refactor this so that we don't need to pass modules through
                     session.gen("init",{
                         http:http,
                         url:urlModule,
-                        archive:require('./archive-lib'),
+                        archive:require('./content/archive-lib'),
                         async:require('async')
                     });
                 }else{
@@ -84,11 +115,23 @@ scion.pathToModel('./archive.xml',function(err,model){
                 console.log("new conf",conf);
             }
         }else{
-            res.writeHead(400, {'Content-Type': 'text/plain'});
-            res.end('Server did not understand request.\n' + JSON.stringify(url,4,4));
+            //assume static files
+            file.serve(req, res);
         }
         
-    }).listen(1337);
+    });
+    server.listen(1337);
     console.log('Server running at http://127.0.0.1:1337/');
+
+    var ioServer = io.listen(server,{log : false});        //start up node-sockets server as well
+
+    ioServer.sockets.on('connection', function (socket) {
+        sockets.push(socket);
+    });
+
+    ioServer.sockets.on('disconnect', function (socket) {
+        sockets.splice(sockets.indexOf(socket),1);
+    });
+
 });
 
