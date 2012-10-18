@@ -1,0 +1,63 @@
+<html>
+    <head>
+        <link rel="stylesheet" href="lib/scxml-viz/ScxmlViz.css"></link>
+        <script src="/socket.io/socket.io.js"></script>
+        <script src="http://d3js.org/d3.v2.js"></script>
+        <script src="http://code.jquery.com/jquery-1.8.2.js"></script>
+        <script src="lib/scxml-viz/ScxmlViz.js"></script>
+        <script>
+
+            //TODO: find a way to inform websocket server about session that we're interested in
+            var socket = io.connect('http://localhost');
+
+            //first parse query parameter
+            var sidMatches = window.location.search.slice(1).match(/^sid=(.*)$/);
+            if(sidMatches.length < 2 ) alert('Session id not specified');
+            var sid = sidMatches[1];
+
+            $(document).ready(function(){
+                $.get('/archive.xml',function(doc,textStatus,jqXhr){
+                    try {
+                        var body = $('body');
+                        body.empty(); 
+                        ScxmlViz(body[0],doc,body.width(),body.height());
+                    }catch(e){
+                        alert(e.message);
+                    }
+
+                    //fetch the initial configuration
+                    $.getJSON('/configuration?sid=' + sid ,function(configuration){
+                        console.log('initial configuration',configuration);
+                        //set the initial state machine
+                        configuration.filter(function(stateId){
+                            return stateId[0] !== '$';
+                        }).forEach(function(stateId){
+                            d3.select('#' + stateId).classed('highlighted',true);
+                        });
+
+                        //listen for entry and exit events
+                        socket.on('onEntry', function (o) {
+                            if(o.sessionId !== sid) return;     //FIXME: fix this on the server
+                            if(o.stateId[0] === '$') return;
+                            console.log('onentry',o.stateId);
+                            d3.select('#' + o.stateId).classed('highlighted',true);
+                        });
+                        socket.on('onExit', function (o) {
+                            if(o.sessionId !== sid) return;     //FIXME: fix this on the server
+                            if(o.stateId[0] === '$') return;
+                            console.log('onexit',o.stateId);
+                            d3.select('#' + o.stateId).classed('highlighted',false);
+                        });
+                    });
+                },'xml');
+            });
+        </script>
+        <style type="text/css">
+            body {
+                margin : 0px;
+            } 
+        </style>
+    </head>
+    <body>
+    </body>
+</html>

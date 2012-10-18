@@ -1,0 +1,3 @@
+[submodule "content/scxml-viz-client/lib/scxml-viz"]
+	path = content/scxml-viz-client/lib/scxml-viz
+	url = git://github.com/jbeard4/scxml-viz.git
