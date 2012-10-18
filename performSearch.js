@@ -122,6 +122,7 @@ function performSearch(searchNumber,searchTerm,res,api){
     });
 }
 
+/*
 if(require.main === module){
     performSearch(process.argv[2],process.argv[3],{
         archive:require('./archive-lib'),
@@ -130,3 +131,4 @@ if(require.main === module){
         url:require('url')
     });
 }
+*/

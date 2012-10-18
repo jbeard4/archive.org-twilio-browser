@@ -8,7 +8,7 @@ var http = require('http'),
 var sessions = {};
 
 //hook up custom action
-scion.ext.actionCodeGenerator.codeGenerators.Response = function(action){
+scion.ext.actionCodeGeneratorModule.gen.actionTags[""].Response = function(action){
     var s = "_event.data.response.writeHead(200, {'Content-Type': 'application/xml'});\n" + 
         "_event.data.response.end(" + JSON.stringify((new xmldom.XMLSerializer()).serializeToString(action)) + ");";
     //console.log("generated Response",s);
